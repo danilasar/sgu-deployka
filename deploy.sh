@@ -5,12 +5,22 @@ set -e
 read -r -p "Путь к устройству назначения (например, /dev/sda): " device
 read -r -p "Путь к папке с efi файлами (также поддерживается ftp://, ssh://): " source_dir
 actionid=1
+log_file=deploy.log
 
 heading() {
 	echo "# ------------------------------------------------------------ 
 # $actionid. $1
 # ------------------------------------------------------------"
 	actionid++
+}
+
+log() {
+	local status=$?
+	local message=$1
+	local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+	echo "[$timestamp] [$status] $message"
+	echo "[$timestamp] [$status] $message" >> "$log_file"
+	return "$status"
 }
 
 check_device() {
