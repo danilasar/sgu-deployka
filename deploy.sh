@@ -69,7 +69,7 @@ copy_partition() {
 
   case "$image_source" in
     https://|http://*|ftp://*)
-      curl -s "$image_source" | dd "of=${device}${partition_number}" bs=4M status=progress
+      curl -sSL "$image_source" | dd "of=${device}${partition_number}" bs=4M status=progress
       ;;
     ssh://*)
       ssh_user_host=$(echo "$image_source" | sed 's/ssh:\/\///; s/\// /')
