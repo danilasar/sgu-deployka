@@ -24,9 +24,14 @@ log() {
 }
 
 check_device() {
+	if ! touch "$log_file" 2>/dev/null; then
+		echo "Нет прав на запись в $log_file" >&2
+		exit 1
+	fi
+
 	heading "Получение устройства и проверка"
 	[ -b "$device" ] || { echo "Устройство $device не найдено"; exit 1; }
-	echo "Устройство $device обнаружено, начинаю развёртывание системы."
+	log "Устройство $device обнаружено, начинаю развёртывание системы."
 }
 
 make_gpt() {
