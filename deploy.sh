@@ -80,6 +80,39 @@ copy_images() {
 	copy_partition 5 "$device/linux.img"
 }
 
+# Функция расширения ФС
+resize_fs() {
+    local partition=$1
+    local fstype=$(blkid -s TYPE -o value "$partition")
+
+    echo "Расширение $partition (тип: ${fstype:-неизвестен})..."
+    
+    case $fstype in
+        ext4)
+            sudo e2fsck -f -y "$partition"
+            sudo resize2fs "$partition"
+            ;;
+        ntfs)
+            sudo ntfsfix "$partition"
+            sudo ntfsresize -f -b -P "$partition"
+            ;;
+        *)
+            echo "Неизвестный тип ФС: $fstype. Расширение невозможно!"
+            return 1
+            ;;
+    esac
+}
+
+resize_filesystems() {
+	heading "Расширение файловых систем"
+	local windows_partition="${device}4"
+	local linux_partition="${device}5"
+	echo "Расширяю $windows_partition"
+	resize_fs $windows_partition
+	echo "Расширяю $linux_partition"
+	resize_fs $linux_partition
+}
+
 update_fstab() {
 	heading "Обновление fstab"
 	linux_part="${device}5"
@@ -93,9 +126,9 @@ update_fstab() {
 	echo "Генерую новый fstab"
 	{
   	echo "# /etc/fstab"
-	  echo "UUID=$(sudo blkid -s UUID -o value "$efi_part")  /boot/efi  vfat  umask=0077  0  1"
-  	echo "UUID=$(sudo blkid -s UUID -o value "$linux_part")  /  ext4  defaults  0  1"
-	  echo "UUID=$(sudo blkid -s UUID -o value "$swap_part")  none  swap  sw  0  0"
+	  echo "UUID=$(blkid -s UUID -o value "$efi_part")  /boot/efi  vfat  umask=0077  0  1"
+  	echo "UUID=$(blkid -s UUID -o value "$linux_part")  /  ext4  defaults  0  1"
+	  echo "UUID=$(blkid -s UUID -o value "$swap_part")  none  swap  sw  0  0"
 	} | tee /mnt/etc/fstab
 
 	echo "Размонтирую разделы"
@@ -168,5 +201,6 @@ check_device
 make_gpt
 copy_partition
 copy_images
+resize_filesystems
 update_fstab
 update_efi
