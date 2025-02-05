@@ -9,6 +9,7 @@ echo "# ------------------------------------------------------------
 # 1. Получение устройства и проверка 
 # ------------------------------------------------------------"
 [ -b "$device" ] || { echo "Устройство $device не найдено"; exit 1; }
+echo "Устройство $device обнаружено, начинаю развёртывание системы."
 
 echo "# ------------------------------------------------------------
 # 2. Создание разделов GPT с помощью sgdisk
@@ -25,7 +26,7 @@ sgdisk --zap-all "$device"
 # 8200 - Swap
 
 echo "Создаю новую таблицу разделов"
-sgdisk \
+sgdisk --align-end=optimal \
   --new=1:0:+128M   --typecode=1:0C01  --change-name=1:"Microsoft Reserved" \
   --new=2:0:+529M   --typecode=2:2700  --change-name=2:"Recovery" \
   --new=3:0:+100M   --typecode=3:EF00  --change-name=3:"EFI" \
@@ -99,24 +100,58 @@ echo "# ------------------------------------------------------------
 # 5. Добавление загрузчика Альт Линукса в EFI
 # ------------------------------------------------------------"
 
-echo "Монтирую EFI-раздел"
-mkdir -p /boot/efi
-mount "${device}3" /boot/efi
+efi_mount="/mnt"
+shim_path="$efi_mount/EFI/altlinux/shimx.64.efi"
+echo "Монтирую EFI-раздел в $efi_mount"
+mount "${device}3" $efi_mount
 
-echo "Создаю загрузочную запись"
-efibootmgr \
-  --create \
-  --disk "$device" \
-  --part 3 \
-  --loader "/EFI/altlinux/shimx64.efi" \
-  --label "Alt Linux" \
-  --verbose
+echo "Проверяю существование shim"
+[ -f "$shim_path" ] || {
+	echo "$shim_path не найден"
+	exit 2
+}
 
-echo "Получаю номер созданной записи"
-new_bootnum=$(efibootmgr | grep "Alt Linux" | sed -E 's/Boot([0-9A-F]+).*/\1/')
+echo "Проверяю существование загрузочной записи"
+existing_entry=$(efibootmgr -v | grep -i "Alt Linux" | grep -Eo 'Boot[0-9A-F]{4}')
 
-echo "Устанавливаю приоритет загрузки"
-efibootmgr --bootorder "$new_bootnum,$(efibootmgr | grep BootOrder: | cut -d' ' -f2-)"
+if [ -n "$existing_entry" ]; then
+	echo "Найдена загрузочная запись: $existing_entry"
+	bootnum=${existing_entry}
+else
+	echo "Не нашёл, создаю новую загрузочную запись"
+	new_entry=$(efibootmgr \
+		--create \
+		--disk "$device" \
+		--part 3 \
+		--loader "\\EFI\\altlinux\\shimx64.efi" \
+		--label "Alt Linux" \
+		--verbose 2>&1 | grep -Eo 'Boot[0-9A-F]{4}' \
+	)
+
+	[ -n "$new_entry" ] || {
+		echo "Не удалось создать запись EFI"
+		exit 3
+	}
+
+	bootnum=${new_entry#Boot}
+fi
 
 echo "Размонтирую EFI-раздел"
-umount /boot/efi
+umount $efi_mount
+
+echo "Получаю порядок загрузки"
+current_order=$(efibootmgr  | grep "BootOrder:" | cut -d: -f2 | tr -d ' ')
+
+echo "Формирую новый порядок загрузки"
+new_order="$bootnum,$(echo "$current_order" | \
+	tr ',' '\n' | \
+	grep -vx "$bootnum" | \
+	tr '\n' ',' | \
+	sed 's/,$//' \
+)"
+
+echo "Сохраняю новый порядок"
+efibootmgr --bootorder "$new_order"
+
+echo "Текущая конфигурация загрузки:"
+efibootmgr | grep -v "BootOrder:"
