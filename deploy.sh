@@ -3,7 +3,7 @@
 set -e
 
 read -r -p "Путь к устройству назначения (например, /dev/sda): " device
-read -r -p "Путь к папке с efi файлами (также поддерживается ftp://, ssh://): " source_dir
+read -r -p "Путь к папке с efi файлами (также поддерживается ftp://, ssh://, smb://user:pass@domain/): " source_dir
 actionid=1
 log_file=deploy.log
 
@@ -68,13 +68,37 @@ copy_partition() {
   echo "[!] Запись образа в раздел ${device}${partition_number}..."
 
   case "$image_source" in
-    ftp://*)
+    https://|http://*|ftp://*)
       curl -s "$image_source" | dd "of=${device}${partition_number}" bs=4M status=progress
       ;;
     ssh://*)
       ssh_user_host=$(echo "$image_source" | sed 's/ssh:\/\///; s/\// /')
       ssh "$ssh_user_host" "cat" | dd "of=${device}${partition_number}" bs=4M status=progress
       ;;
+		smb://*)
+			local user_pass_server=$(echo "$image_source" | sed 's/smb:\/\///; s/@/ /')
+			local server_share_path=$(echo "$user_pass_server" | awk '{print $2')
+			local user_pass=$(echo "$user_pass_server" | awk '{print $1}')
+
+			# todo check is it correct parsing
+			local server=$(echo "$server_share_path" | cut -d/ -f1)
+			local share=$(echo "$server_share_path" | cut -d/ -f2)
+			local path="/$(echo "$server_share_path" | cut -d/ -f3-)"
+			local user=$(echo "$user_pass" | cut -d: -f1)
+			local pass=$(echo "$user_pass" | cut -d: -f2-)
+
+			log "Копирование с //${server}/${share}${path}"
+			smbclient -U "$user"%"$pass" "//${server}/${share}${path}" \
+				-c "get \"$path\" -" \
+				| dd of="$partition" bs=4M status=progress
+
+			: '
+				Also alternative:
+				mount -t cifs "//${server}/${share}" /mnt -o user="$user",pass="$pass"
+				dd if=/mnt/${path} of="$partition"
+				umount /mnt
+			'
+			;;
     *)
       dd "if=$image_source" "of=${device}${partition_number}" bs=4M status=progress
       ;;
