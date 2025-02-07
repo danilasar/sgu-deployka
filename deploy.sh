@@ -2,15 +2,14 @@
 
 set -e
 
-
 device=$(dialog --stdout --title "Целевое устройство" --fselect "/dev/" 14 88)
 source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' 14 88 "$(pwd)")
-scenario_choice=$(dialog --title "Выбор сценрия" --radiolist "Выбери сценарий:" 14 88 4 \
+scenario_choice=$(dialog --stdout --title "Выбор сценрия" --radiolist "Выбери сценарий:" 14 88 4 \
     1 "Полное развёртывание системы" on \
     2 "Синхронизация файловых систем (В РАЗРАБОТКЕ)" off \
-    3 "Свой сценарий" off 3>&1 1>&2 2>&3)
-scenario=""
+    3 "Свой сценарий" off)
 
+scenario=""
 case $scenario_choice in
 	1)
 		scenario=(check_device make_gpt copy_images resize_filesystems update_fstab update_efi connect_to_domain)
@@ -320,7 +319,7 @@ connect_to_domain() {
 
 	log "Монтирую раздел $TARGET_PARTITION..."
 	mkdir -p "$MOUNT_POINT"
-	mount "$TARGET_PARTITION" "$MOUNT_POINT"
+	mount "${device}5" "$MOUNT_POINT"
 
 	log "Устанавливаю hostname: $NEW_HOSTNAME..."
 	log "$NEW_HOSTNAME" | sudo tee "${MOUNT_POINT}/etc/hostname" > /dev/null
@@ -340,6 +339,6 @@ connect_to_domain() {
 	umount "$MOUNT_POINT"
 }
 
-for cmd in "${scenario[@]}"; do
+for cmd in ${scenario[@]}; do
 	$cmd
 done
