@@ -36,9 +36,6 @@ check_device() {
 
 make_gpt() {
 	heading "Создание разделов GPT с помощью parted"
-	echo "Удаляю таблицу разделов"
-	sgdisk --zap-all "$device"
-
 	# Имена разделов
 	local NAME1="Microsoft Reserved"
 	local NAME2="Windows Recovery"
@@ -154,7 +151,7 @@ resize_fs() {
     local partition=$1
     local fstype=$(blkid -s TYPE -o value "$partition")
 
-    echo "Расширение $partition (тип: ${fstype:-неизвестен})..."
+    log "Расширение $partition (тип: ${fstype:-неизвестен})..."
     
     case $fstype in
         ext4)
@@ -166,7 +163,7 @@ resize_fs() {
             yes | ntfsresize -f -b -P "$partition" || true
             ;;
         *)
-            echo "Неизвестный тип ФС: $fstype. Расширение невозможно!"
+            log "Неизвестный тип файловой системы: $fstype. Расширение невозможно!"
             return 1
             ;;
     esac
@@ -176,9 +173,9 @@ resize_filesystems() {
 	heading "Расширение файловых систем"
 	local windows_partition="${device}4"
 	local linux_partition="${device}5"
-	echo "Расширяю $windows_partition"
+	log "Расширяю $windows_partition"
 	resize_fs "$windows_partition"
-	echo "Расширяю $linux_partition"
+	log "Расширяю $linux_partition"
 	resize_fs "$linux_partition"
 }
 
@@ -188,19 +185,19 @@ update_fstab() {
 	efi_part="${device}3"
 	swap_part="${device}6"
 
-	echo "Монтирую разделы"
+	log "Монтирую разделы"
 	mount "$linux_part" /mnt
 	mount "$efi_part" /mnt/boot/efi
 
-	echo "Генерую новый fstab"
+	log "Генерую новый fstab"
 	{
-  	echo "# /etc/fstab"
-	  echo "UUID=$(blkid -s UUID -o value "$efi_part")  /boot/efi  vfat  umask=0077  0  1"
-  	echo "UUID=$(blkid -s UUID -o value "$linux_part")  /  ext4  defaults  0  1"
-	  echo "UUID=$(blkid -s UUID -o value "$swap_part")  none  swap  sw  0  0"
+  	log "# /etc/fstab"
+	  log "UUID=$(blkid -s UUID -o value "$efi_part")  /boot/efi  vfat  umask=0077  0  1"
+  	log "UUID=$(blkid -s UUID -o value "$linux_part")  /  ext4  defaults  0  1"
+	  log "UUID=$(blkid -s UUID -o value "$swap_part")  none  swap  sw  0  0"
 	} | tee /mnt/etc/fstab
 
-	echo "Размонтирую разделы"
+	log "Размонтирую разделы"
 	umount "$efi_part"
 	umount "$linux_part"
 }
