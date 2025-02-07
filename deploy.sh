@@ -179,7 +179,7 @@ update_efi() {
 	heading "Добавление загрузчика Альт Линукса в EFI"
 	
 	efi_mount="/mnt"
-	shim_path="$efi_mount/EFI/altlinux/shimx.64.efi"
+	shim_path="$efi_mount/EFI/altlinux/shimx64.efi"
 	echo "Монтирую EFI-раздел в $efi_mount"
 	mount "${device}3" $efi_mount
 	
