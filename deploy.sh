@@ -51,15 +51,15 @@ make_gpt() {
 	parted -s "$device" mklabel gpt
 
 	log "Создаю первый раздел (FAT32 LBA)"
-	parted -s "$device" mkpart fat32 0 128MiB
+	parted -s "$device" mkpart fat32 17408B 134235135B
 	parted -s "$device" name 1 "\"$NAME1\""
 	
 	log "Создаю второй раздел (Windows Recovery)"
-	parted -s "$device" mkpart ntfs 129MiB 658MiB
+	parted -s "$device" mkpart ntfs 135266304B 689963007B
 	parted -s "$device" name 2 "\"$NAME2\""
 	
 	log "Создаем третий раздел (EFI System Partition)"
-	parted -s "$device" mkpart fat32 658MiB 758MiB
+	parted -s "$device" mkpart fat32 689963008B 794820607B
 	parted -s "$device" name 3 "\"$NAME3\""
 	parted -s "$device" set 3 boot on
 	
@@ -71,7 +71,7 @@ make_gpt() {
 	local SIZE5=$SIZE4
 	
 	log "Создаю раздел с виндой"
-	parted -s "$device" mkpart ntfs 758MiB $((758 + SIZE4))MiB
+	parted -s "$device" mkpart ntfs 794820608B $((758 + SIZE4))MiB
 	parted -s "$device" name 4 "\"$NAME4\""
 	parted -s "$device" set 4 msftdata on
 	
