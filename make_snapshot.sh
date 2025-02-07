@@ -21,7 +21,7 @@ log() {
 setting_up() {
 	heading "Настройка копирования"
 	device=$(dialog --stdout --title "Исходное устройство" --fselect "/dev/" 14 88)
-	destination_dir=$(dialog --stdout --title "Путь, куда сохранять:" --dselect "$(dirname "$(pwd)")" 14 88)
+	destination_dir=$(dialog --stdout --title "Путь, куда сохранять:" --dselect "$(pwd)" 14 88)
 	deviceids=$(dialog --checklist "Выбери разделы для копирования:" 20 88 5 \
 		1 "Зарезервированный раздел windows" on \
 		2 "Раздел восстановления windows" on \
@@ -88,7 +88,9 @@ make_backup() {
 
 		log "Копирую $device_part в $output_file..."
 		dd if="$device_part" of="$output_file" bs=4M status=progress
-		if [ $? -eq 0 ]; then
+		local $ret_val=$?
+		echo $ret_val
+		if [ $ret_val -eq 0 ]; then
 			log "Успешно создан $output_file"
 			ls -lh "$output_file"
 		else
@@ -98,11 +100,11 @@ make_backup() {
 }
 
 destruct() {
+	log "Успешно!"
 	unset actionid
 	unset log_file
 	unset destination_dir
 	unset deviceids
-	log "Успешно!"
 }
 
 setting_up
