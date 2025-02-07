@@ -59,13 +59,15 @@ make_gpt() {
 }
 
 # ------------------------------------------------------------
-# Функция копирования образов (локально/FTP/SSH)
+# Функция копирования образов (локально/FTP/SSH/HTTP(S))
 # ------------------------------------------------------------
 copy_partition() {
   local partition_number=$1
   local image_source=$2
+	echo "$partition_number"
+	echo "$image_source"
 
-  echo "[!] Запись образа в раздел ${device}${partition_number}..."
+  log "Запиываю образ в раздел ${device}${partition_number}..."
 
   case "$image_source" in
     https://|http://*|ftp://*)
@@ -107,15 +109,15 @@ copy_partition() {
 
 copy_images() {
 	heading "Копирование образов"
-	echo "ms_reserved.img..."
+	log "ms_reserved.img..."
 	copy_partition 1 "$source_dir/ms_reserved.img"
-	echo "recovery.img..."
+	log "recovery.img..."
 	copy_partition 2 "$source_dir/recovery.img"
-	echo "efi.img..."
+	log "efi.img..."
 	copy_partition 3 "$source_dir/efi.img"
-	echo "windows.img..."
+	log "windows.img..."
 	copy_partition 4 "$source_dir/windows.img"
-	echo "linux.img..."
+	log "linux.img..."
 	copy_partition 5 "$source_dir/linux.img"
 }
 
