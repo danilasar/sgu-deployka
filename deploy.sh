@@ -227,7 +227,7 @@ update_efi() {
 	
 	if [ -n "$existing_entry" ]; then
 		echo "Найдена загрузочная запись: $existing_entry"
-		bootnum=${existing_entry}
+		bootnum=${existing_entry#Boot}
 	else
 		echo "Не нашёл, создаю новую загрузочную запись"
 		new_entry=$(efibootmgr \
@@ -236,7 +236,7 @@ update_efi() {
 			--part 3 \
 			--loader "\\EFI\\altlinux\\shimx64.efi" \
 			--label "Alt Linux" \
-			--verbose 2>&1 | grep -Eo 'Boot[0-9A-F]{4}' \
+			--verbose 2>&1 | grep -oP 'Boot\K[0-9A-F]{4}' \
 		)
 	
 		[ -n "$new_entry" ] || {
@@ -244,7 +244,7 @@ update_efi() {
 			exit 3
 		}
 	
-		bootnum=${new_entry#Boot}
+		bootnum=${new_entry##* }
 	fi
 	
 	echo "Размонтирую EFI-раздел"
@@ -265,7 +265,7 @@ update_efi() {
 	efibootmgr --bootorder "$new_order"
 	
 	echo "Текущая конфигурация загрузки:"
-	efibootmgr | grep -v "BootOrder:"
+	efibootmgr
 }
 
 
