@@ -322,7 +322,7 @@ connect_to_domain() {
 	mount "${device}5" "$MOUNT_POINT"
 
 	log "Устанавливаю hostname: $NEW_HOSTNAME..."
-	log "$NEW_HOSTNAME" | sudo tee "${MOUNT_POINT}/etc/hostname" > /dev/null
+	log "$NEW_HOSTNAME" | tee "${MOUNT_POINT}/etc/hostname" > /dev/null
 	sed -i "s/^127.0.1.1.*/127.0.1.1\t$NEW_HOSTNAME/" "${MOUNT_POINT}/etc/hosts"
 
 	log "Присоединяюсь к домену"
