@@ -264,9 +264,6 @@ update_efi() {
 	efibootmgr --bootorder "$new_order"
 
 	log "Работа с загрузочными записями завершена"
-	
-	echo "Текущая конфигурация загрузки:"
-	efibootmgr
 }
 
 
