@@ -66,7 +66,7 @@ make_gpt() {
 	# Определяем оставшееся пространство
 	log "Определяю размеры основных разделов"
 	local TOTAL_SIZE=$(parted -s "$device" unit MiB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
-	local FREE_SIZE=$((TOTAL_SIZE - 758 - 8192))
+	local FREE_SIZE=$((TOTAL_SIZE - 758 - 8192 - 2))
 	local SIZE4=$((FREE_SIZE / 2))
 	local SIZE5=$SIZE4
 	
@@ -76,11 +76,11 @@ make_gpt() {
 	parted -s "$device" set 4 msftdata on
 	
 	log "Создаю раздел с альтушкой"
-	parted -s "$device" mkpart ext4 $((758 + SIZE4))MiB $((758 + SIZE4 + SIZE5))MiB
+	parted -s "$device" mkpart ext4 $((758 + 1 + SIZE4))MiB $((758 + SIZE4 + SIZE5))MiB
 	parted -s "$device" name 5 "\"$NAME5\""
 	
 	log "Создаю раздел подкачки"
-	parted -s "$device" mkpart linux-swap $((758 + SIZE4 + SIZE5)) 100%
+	parted -s "$device" mkpart linux-swap $((758 + 1 + SIZE4 + 1 + SIZE5))MiB 100%
 	parted -s "$device" name 6 "\"$NAME6\""
 	
 	parted -s "$device" print
