@@ -51,7 +51,7 @@ make_gpt() {
 	parted -s "$device" mklabel gpt
 
 	log "Создаю первый раздел (FAT32 LBA)"
-	parted -s "$device" mkpart fat32 0.02MiB 128MiB
+	parted -s "$device" mkpart fat32 0 128MiB
 	parted -s "$device" name 1 "\"$NAME1\""
 	
 	log "Создаю второй раздел (Windows Recovery)"
@@ -76,7 +76,7 @@ make_gpt() {
 	parted -s "$device" set 4 msftdata on
 	
 	log "Создаю раздел с альтушкой"
-	parted -s "$device" mkpart ext4 $((758 + SIZE4))MB $((758 + SIZE4 + SIZE5))MB
+	parted -s "$device" mkpart ext4 $((758 + SIZE4))MiB $((758 + SIZE4 + SIZE5))MiB
 	parted -s "$device" name 5 "\"$NAME5\""
 	
 	log "Создаю раздел подкачки"
