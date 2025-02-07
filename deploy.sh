@@ -191,10 +191,13 @@ update_fstab() {
 
 	log "Генерую новый fstab"
 	{
-  	log "# /etc/fstab"
-	  log "UUID=$(blkid -s UUID -o value "$efi_part")  /boot/efi  vfat  umask=0077  0  1"
-  	log "UUID=$(blkid -s UUID -o value "$linux_part")  /  ext4  defaults  0  1"
-	  log "UUID=$(blkid -s UUID -o value "$swap_part")  none  swap  sw  0  0"
+  	echo "# /etc/fstab
+proc		/proc			proc	nosuid,noexec,gid=proc				0 0
+devpts		/dev/pts		devpts  nosuid,noexec,gid=tty,mode=620,ptmxmode=0666	0 0
+tmpfs		/tmp			tmpfs	nosuid						0 0
+UUID=$(blkid -s UUID -o value "$efi_part")		/boot/efi		vfat		umask=0077	0 1
+UUID=$(blkid -s UUID -o value "$linux_part")		/		ext4		defaults	0 1
+UUID=$(blkid -s UUID -o value "$swap_part")		none		swap		sw	0 0"
 	} | tee /mnt/etc/fstab
 
 	log "Размонтирую разделы"
