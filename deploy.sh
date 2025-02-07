@@ -3,7 +3,7 @@
 set -e
 
 read -r -p "Путь к устройству назначения (например, /dev/sda): " device
-read -r -p "Путь к папке с efi файлами (также поддерживается ftp://, ssh://, smb://user:pass@domain/): " source_dir
+read -r -p "Путь к папке с образами (также поддерживается ftp://, ssh://, smb://user:pass@domain/): " source_dir
 actionid=1
 log_file=deploy.log
 
