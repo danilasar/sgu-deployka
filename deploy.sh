@@ -35,7 +35,7 @@ check_device() {
 }
 
 make_gpt() {
-	heading "Создание разделов GPT с помощью sgdisk"
+	heading "Создание разделов GPT с помощью parted"
 	echo "Удаляю таблицу разделов"
 	sgdisk --zap-all "$device"
 
@@ -51,37 +51,36 @@ make_gpt() {
 	parted -s "$device" mklabel gpt
 
 	log "Создаю первый раздел (FAT32 LBA)"
-	parted -s "$device" mkpart fat32 17.4KB 134MB
+	parted -s "$device" mkpart fat32 0.02MiB 128MiB
 	parted -s "$device" name 1 "\"$NAME1\""
 	
 	log "Создаю второй раздел (Windows Recovery)"
-	parted -s "$device" mkpart ntfs 135MB 690MB
+	parted -s "$device" mkpart ntfs 129MiB 658MiB
 	parted -s "$device" name 2 "\"$NAME2\""
 	
 	log "Создаем третий раздел (EFI System Partition)"
-	parted -s "$device" mkpart fat32 690MB 795MB
+	parted -s "$device" mkpart fat32 658MiB 758MiB
 	parted -s "$device" name 3 "\"$NAME3\""
 	parted -s "$device" set 3 boot on
 	
 	# Определяем оставшееся пространство
 	log "Определяю размеры основных разделов"
-	local TOTAL_SIZE=$(parted -s "$device" unit MB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
-	local FREE_SIZE=$((TOTAL_SIZE - 795 - 8))
+	local TOTAL_SIZE=$(parted -s "$device" unit MiB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
+	local FREE_SIZE=$((TOTAL_SIZE - 758 - 8192))
 	local SIZE4=$((FREE_SIZE / 2))
 	local SIZE5=$SIZE4
 	
 	log "Создаю раздел с виндой"
-	parted -s "$device" mkpart ntfs 795MB $((795 + SIZE4))MB
+	parted -s "$device" mkpart ntfs 758MiB $((758 + SIZE4))MiB
 	parted -s "$device" name 4 "\"$NAME4\""
 	parted -s "$device" set 4 msftdata on
 	
 	log "Создаю раздел с альтушкой"
-	parted -s "$device" mkpart ext4 $((795 + SIZE4))MB $((795 + SIZE4 + SIZE5))MB
+	parted -s "$device" mkpart ext4 $((758 + SIZE4))MB $((758 + SIZE4 + SIZE5))MB
 	parted -s "$device" name 5 "\"$NAME5\""
 	
 	log "Создаю раздел подкачки"
-	local START="$(parted -s "$device" unit GB print free | grep "Free Space" | tail -n 1 | awk '{print $1}')"
-	parted -s "$device" mkpart linux-swap "$START" 100%
+	parted -s "$device" mkpart linux-swap $((758 + SIZE4 + SIZE5)) 100%
 	parted -s "$device" name 6 "\"$NAME6\""
 	
 	parted -s "$device" print
