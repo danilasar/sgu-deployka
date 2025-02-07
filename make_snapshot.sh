@@ -88,9 +88,9 @@ make_backup() {
 
 		log "Копирую $device_part в $output_file..."
 		dd if="$device_part" of="$output_file" bs=4M status=progress
-		local $ret_val=$?
-		echo $ret_val
-		if [ $ret_val -eq 0 ]; then
+		local ret_val=$?
+		echo "$ret_val"
+		if [ "$ret_val" -eq 0 ]; then
 			log "Успешно создан $output_file"
 			ls -lh "$output_file"
 		else
