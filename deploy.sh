@@ -34,6 +34,13 @@ case $scenario_choice in
 		;;
 esac
 
+if [[ " ${scenario[*]} " =~ " connect_to_domain " ]]; then
+	MOUNT_POINT="/mnt/alt"
+	NEW_HOSTNAME=$(dialog --stdout --title "Имя компьютера" --inputbox "Введите имя компьютера:" 14 88 "W12-")
+	AD_DOMAIN=$(dialog --stdout --title "Домен" --inputbox "Введите домен:" 14 88 "main.sgu.ru")
+	AD_ADMIN=$(dialog --stdout --title "Учётная запись" --inputbox "Введите учётную запись с правами присоединения к домену:" 14 88 "grigorevde")
+	AD_PASSWORD=$(dialog --stdout --title "Пароль" --passwordbox "Введите пароль для учётной записи с правами присоединения к домену:" 14 88)
+fi
 
 actionid=1
 log_file=deploy.log
@@ -52,6 +59,10 @@ log() {
 	echo "[$timestamp] [$status] $message"
 	echo "[$timestamp] [$status] $message" >> "$log_file"
 	return "$status"
+}
+
+chroot_exec() {
+    chroot "$MOUNT_POINT" /bin/bash -c "$1"
 }
 
 check_device() {
@@ -306,7 +317,27 @@ update_efi() {
 
 connect_to_domain() {
 	heading "Подключение к домену"
-	echo "TODO"
+
+	log "Монтирую раздел $TARGET_PARTITION..."
+	mkdir -p "$MOUNT_POINT"
+	mount "$TARGET_PARTITION" "$MOUNT_POINT"
+
+	log "Устанавливаю hostname: $NEW_HOSTNAME..."
+	log "$NEW_HOSTNAME" | sudo tee "${MOUNT_POINT}/etc/hostname" > /dev/null
+	sed -i "s/^127.0.1.1.*/127.0.1.1\t$NEW_HOSTNAME/" "${MOUNT_POINT}/etc/hosts"
+
+	log "Присоединяюсь к домену"
+	chroot_exec "echo '$AD_PASSWORD' | realm join --user '$AD_ADMIN' $AD_DOMAIN"
+
+	log "Настраиваю SSSD"
+	cp "${MOUNT_POINT}/etc/sssd/sssd.conf" "${MOUNT_POINT}/etc/sssd/sssd.conf.bak"
+	sed -i 's/use_fully_qualified_names = True/use_fully_qualified_names = False/' "${MOUNT_POINT}/etc/sssd/sssd.conf"
+
+	log "Проверяю присоединение к домену..."
+	chroot_exec "realm list"
+
+	log "Размонтирую систему..."
+	umount "$MOUNT_POINT"
 }
 
 for cmd in "${scenario[@]}"; do
