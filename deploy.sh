@@ -58,15 +58,15 @@ make_gpt() {
 
 	log "Создаю первый раздел (FAT32 LBA)"
 	parted -s "$device" mkpart fat32 1MiB ${SIZE1}MiB
-	parted -s "$device" name 1 "$NAME1"
+	parted -s "$device" name 1 "\"$NAME1\""
 	
 	log "Создаю второй раздел (Windows Recovery)"
 	parted -s "$device" mkpart ntfs ${SIZE1}MiB $((SIZE1 + SIZE2))MiB
-	parted -s "$device" name 2 "$NAME2"
+	parted -s "$device" name 2 "\"$NAME2\""
 	
 	log "Создаем третий раздел (EFI System Partition)"
 	parted -s "$device" mkpart fat32 $((SIZE1 + SIZE2))MiB $((SIZE1 + SIZE2 + SIZE3))MiB
-	parted -s "$device" name 3 "$NAME3"
+	parted -s "$device" name 3 "\"$NAME3\""
 	parted -s "$device" set 3 boot on
 	
 	# Определяем оставшееся пространство
@@ -78,16 +78,16 @@ make_gpt() {
 	
 	log "Создаю раздел с виндой"
 	parted -s "$device" mkpart ntfs $((SIZE1 + SIZE2 + SIZE3))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB
-	parted -s "$device" name 4 "$NAME4"
+	parted -s "$device" name 4 "\"$NAME4\""
 	parted -s "$device" set 4 msftdata on
 	
 	log "Создаю раздел с альтушкой"
 	parted -s "$device" mkpart ext4 $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4 + SIZE5))MiB
-	parted -s "$device" name 5 "$NAME5"
+	parted -s "$device" name 5 "\"$NAME5\""
 	
 	log "Создаю раздел подкачки"
 	parted -s "$device" mkpart linux-swap $((TOTAL_SIZE - SIZE5))MiB ${TOTAL_SIZE}MiB
-	parted -s "$device" name 6 "$NAME6"
+	parted -s "$device" name 6 "\"$NAME6\""
 	
 	parted -s "$device" print
 	
