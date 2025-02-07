@@ -2,8 +2,39 @@
 
 set -e
 
-read -r -p "Путь к устройству назначения (например, /dev/sda): " device
-read -r -p "Путь к папке с образами (также поддерживается ftp://, ssh://, smb://user:pass@domain/): " source_dir
+
+device=$(dialog --stdout --title "Целевое устройство" --fselect "/dev/" 14 88)
+source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' "$(pwd)" 14 88)
+scenario_choice=$(dialog --title "Выбор сценрия" --radiolist "Выбери сценарий:" 14 88 4 \
+    1 "Полное развёртывание системы" off \
+    2 "Синхронизация файловых систем (В РАЗРАБОТКЕ)" off \
+    3 "Свой сценарий" off 3>&1 1>&2 2>&3)
+scenario=""
+
+case $scenario_choice in
+	1)
+		scenario=(check_device make_gpt copy_images resize_filesystems update_fstab update_efi connect_to_domain)
+		;;
+	2)
+		scenario=(check_device sync_filesystems)
+		;;
+	3)
+		choices=$(dialog --stdout --title "Выбор действий" --checklist "Выбери нужные действия:" 15 50 8 \
+			"check_device" "Проверить ввод" on \
+			"make_gpt" "Пересоздать таблицу разделов" on \
+			"copy_images" "Развернуть образы" on \
+			"resize_filesystems" "Расширить файловые системы" on \
+			"sync_filesystems" "Синхронизовать файловые системы (СКОРО ПОЯВИТСЯ)" off \
+			"update_fstab" "Обновить fstab" on \
+			"update_efi" "Обновить загрузочные записи" on \
+			"connect_to_domain" "Прописать Альт в домен" off)
+		;;
+	*)
+		exit 3
+		;;
+esac
+
+
 actionid=1
 log_file=deploy.log
 
@@ -181,6 +212,11 @@ resize_filesystems() {
 	resize_fs "$linux_partition"
 }
 
+sync_filesystems() {
+	heading "Синхронизация файловых систем"
+	echo "TODO"
+}
+
 update_fstab() {
 	heading "Обновление fstab"
 	linux_part="${device}5"
@@ -268,10 +304,11 @@ update_efi() {
 	log "Работа с загрузочными записями завершена"
 }
 
+connect_to_domain() {
+	heading "Подключение к домену"
+	echo "TODO"
+}
 
-check_device
-make_gpt
-copy_images
-resize_filesystems
-update_fstab
-update_efi
+for cmd in "${scenario[@]}"; do
+	$cmd
+done
