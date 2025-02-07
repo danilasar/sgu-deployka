@@ -158,12 +158,12 @@ resize_fs() {
     
     case $fstype in
         ext4)
-            sudo e2fsck -f -y "$partition"
-            sudo resize2fs "$partition"
+            e2fsck -f -y "$partition"
+            resize2fs "$partition"
             ;;
         ntfs)
-            sudo ntfsfix "$partition"
-            sudo ntfsresize -f -b -P "$partition"
+            ntfsfix "$partition"
+            ntfsresize -f -b -P "$partition"
             ;;
         *)
             echo "Неизвестный тип ФС: $fstype. Расширение невозможно!"
