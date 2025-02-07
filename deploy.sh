@@ -54,42 +54,42 @@ make_gpt() {
 	local NAME6="Swap"
 
 	log "Пересоздаю таблицу разделов GPT"
-	parted -s "$DISK" mklabel gpt
+	parted -s "$device" mklabel gpt
 
 	log "Создаю первый раздел (FAT32 LBA)"
-	parted -s "$DISK" mkpart "$NAME1" fat32 1MiB ${SIZE1}MiB
-	parted -s "$DISK" name 1 "$NAME1"
+	parted -s "$device" mkpart "$NAME1" fat32 1MiB ${SIZE1}MiB
+	parted -s "$device" name 1 "$NAME1"
 	
 	log "Создаю второй раздел (Windows Recovery)"
-	parted -s "$DISK" mkpart "$NAME2" ntfs ${SIZE1}MiB $((SIZE1 + SIZE2))MiB
-	parted -s "$DISK" name 2 "$NAME2"
+	parted -s "$device" mkpart "$NAME2" ntfs ${SIZE1}MiB $((SIZE1 + SIZE2))MiB
+	parted -s "$device" name 2 "$NAME2"
 	
 	log "Создаем третий раздел (EFI System Partition)"
-	parted -s "$DISK" mkpart "$NAME3" fat32 $((SIZE1 + SIZE2))MiB $((SIZE1 + SIZE2 + SIZE3))MiB
-	parted -s "$DISK" name 3 "$NAME3"
-	parted -s "$DISK" set 3 boot on
+	parted -s "$device" mkpart "$NAME3" fat32 $((SIZE1 + SIZE2))MiB $((SIZE1 + SIZE2 + SIZE3))MiB
+	parted -s "$device" name 3 "$NAME3"
+	parted -s "$device" set 3 boot on
 	
 	# Определяем оставшееся пространство
 	log "Определяю размеры основных разделов"
-	local TOTAL_SIZE=$(parted -s "$DISK" unit MiB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
+	local TOTAL_SIZE=$(parted -s "$device" unit MiB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
 	local FREE_SIZE=$((TOTAL_SIZE - SIZE1 - SIZE2 - SIZE3 - SIZE5))
 	local SIZE4=$((FREE_SIZE / 2))
 	local SIZE5=$SIZE4
 	
 	log "Создаю раздел с виндой"
-	parted -s "$DISK" mkpart "$NAME4" ntfs $((SIZE1 + SIZE2 + SIZE3))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB
-	parted -s "$DISK" name 4 "$NAME4"
-	parted -s "$DISK" set 4 msftdata on
+	parted -s "$device" mkpart "$NAME4" ntfs $((SIZE1 + SIZE2 + SIZE3))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB
+	parted -s "$device" name 4 "$NAME4"
+	parted -s "$device" set 4 msftdata on
 	
 	log "Создаю раздел с альтушкой"
-	parted -s "$DISK" mkpart "$NAME5" ext4 $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4 + SIZE5))MiB
-	parted -s "$DISK" name 5 "$NAME5"
+	parted -s "$device" mkpart "$NAME5" ext4 $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4 + SIZE5))MiB
+	parted -s "$device" name 5 "$NAME5"
 	
 	log "Создаю раздел подкачки"
-	parted -s "$DISK" mkpart "$NAME6" linux-swap $((TOTAL_SIZE - SIZE5))MiB ${TOTAL_SIZE}MiB
-	parted -s "$DISK" name 6 "$NAME6"
+	parted -s "$device" mkpart "$NAME6" linux-swap $((TOTAL_SIZE - SIZE5))MiB ${TOTAL_SIZE}MiB
+	parted -s "$device" name 6 "$NAME6"
 	
-	parted -s "$DISK" print
+	parted -s "$device" print
 	
 	log "Создание таблицы разделов завершено"
 }
