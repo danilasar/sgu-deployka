@@ -158,11 +158,11 @@ resize_fs() {
     
     case $fstype in
         ext4)
-            e2fsck -f -y "$partition"
+            e2fsck -f -y "$partition" || true
             resize2fs "$partition"
             ;;
         ntfs)
-            ntfsfix "$partition"
+            ntfsfix -y "$partition"
             ntfsresize -f -b -P "$partition"
             ;;
         *)
