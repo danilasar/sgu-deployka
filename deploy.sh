@@ -162,8 +162,8 @@ resize_fs() {
             resize2fs "$partition"
             ;;
         ntfs)
-            yes | ntfsfix "$partition"
-            ntfsresize -f -b -P "$partition"
+            yes | ntfsfix "$partition" || true
+            yes | ntfsresize -f -b -P "$partition" || true
             ;;
         *)
             echo "Неизвестный тип ФС: $fstype. Расширение невозможно!"
