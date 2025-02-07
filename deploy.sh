@@ -52,9 +52,9 @@ make_gpt() {
 	  --new=1:0:+128M   --typecode=1:0C01  --change-name=1:"Microsoft Reserved" \
 	  --new=2:0:+529M   --typecode=2:2700  --change-name=2:"Recovery" \
 	  --new=3:0:+100M   --typecode=3:EF00  --change-name=3:"EFI" \
-	  --new=4:0:+50%    --typecode=4:0700  --change-name=4:"Windows" \
-  	--new=5:0:-8G     --typecode=5:8300  --change-name=5:"Linux" \
-	  --new=6:0:0       --typecode=6:8200  --change-name=6:"Swap" \
+	  --new=6:-8G:0       --typecode=6:8200  --change-name=6:"Swap" \
+	  #--new=4:0:+50%    --typecode=4:0700  --change-name=4:"Windows" \
+  	#--new=5:0:-8G     --typecode=5:8300  --change-name=5:"Linux" \
 	  "$device"
 }
 
@@ -64,8 +64,6 @@ make_gpt() {
 copy_partition() {
   local partition_number=$1
   local image_source=$2
-	echo "$partition_number"
-	echo "$image_source"
 
   log "Запиываю образ в раздел ${device}${partition_number}..."
 
