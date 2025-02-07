@@ -147,9 +147,9 @@ resize_filesystems() {
 	local windows_partition="${device}4"
 	local linux_partition="${device}5"
 	echo "Расширяю $windows_partition"
-	resize_fs $windows_partition
+	resize_fs "$windows_partition"
 	echo "Расширяю $linux_partition"
-	resize_fs $linux_partition
+	resize_fs "$linux_partition"
 }
 
 update_fstab() {

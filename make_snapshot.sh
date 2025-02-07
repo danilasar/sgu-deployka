@@ -21,8 +21,8 @@ log() {
 setting_up() {
 	heading "Настройка копирования"
 	device=$(dialog --stdout --title "Исходное устройство" --fselect "/dev/" 14 88)
-	destination_dir=$(dialog --stdout --title "Путь, куда сохранять:" --inputbox "$(dirname "$(pwd)")" 14 88)
-	deviceids=$(dialog --checklist "Выбери разделы для копирования:" 15 40 5 \
+	destination_dir=$(dialog --stdout --title "Путь, куда сохранять:" --dselect "$(dirname "$(pwd)")" 14 88)
+	deviceids=$(dialog --checklist "Выбери разделы для копирования:" 20 88 5 \
 		1 "Зарезервированный раздел windows" on \
 		2 "Раздел восстановления windows" on \
 		3 "Загрузочный раздел EFI" on \
@@ -44,14 +44,14 @@ check_device() {
 	log "Устройство $device обнаружено, начинаю развёртывание системы."
 
 	log "Будут сделаны снимки следующих устройств:"
-	for i in "${!deviceids[@]}"; do
+	for i in $deviceids; do
 		log "+ ${device}${i}"
 	done
 
 	log "Образы дисков будут сохранены по пути:"
 	log "${destination_dir}"
 
-	read -r -p 'Продолжить? [Д/н]' choice
+	read -r -p 'Продолжить? [Д/н] ' choice
 	case $(echo "$choice" | awk '{print tolower($0)}') in
 		д|да|y|yes|yep|ага)
 			echo 'Приступаю к копированию'
@@ -65,7 +65,7 @@ check_device() {
 
 make_backup() {
 	heading "Создание снимков"
-	for i in "${deviceids[@]}"; do
+	for i in $deviceids; do
 		local out=""
 		log "Определяю имя файла для раздела ${i}"
 		case "$i" in
