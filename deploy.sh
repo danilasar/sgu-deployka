@@ -162,7 +162,7 @@ resize_fs() {
             resize2fs "$partition"
             ;;
         ntfs)
-            ntfsfix -y "$partition"
+            yes | ntfsfix "$partition"
             ntfsresize -f -b -P "$partition"
             ;;
         *)
