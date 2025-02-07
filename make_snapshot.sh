@@ -87,8 +87,8 @@ make_backup() {
 		fi
 
 		log "Копирую $device_part в $output_file..."
-
-		if "$(dd if="$device_part" of="$output_file" bs=4M status=progress)"; then
+		dd if="$device_part" of="$output_file" bs=4M status=progress
+		if [ $? -eq 0 ]; then
 			log "Успешно создан $output_file"
 			ls -lh "$output_file"
 		else
