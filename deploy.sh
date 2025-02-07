@@ -219,8 +219,11 @@ update_efi() {
 		exit 2
 	}
 	
+	set +e
+
 	echo "Проверяю существование загрузочной записи"
 	existing_entry=$(efibootmgr -v | grep -i "Alt Linux" | grep -Eo 'Boot[0-9A-F]{4}')
+	echo "$existing_entry"
 	
 	if [ -n "$existing_entry" ]; then
 		echo "Найдена загрузочная запись: $existing_entry"
