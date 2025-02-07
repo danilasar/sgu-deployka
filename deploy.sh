@@ -240,7 +240,6 @@ update_efi() {
 
 check_device
 make_gpt
-copy_partition
 copy_images
 resize_filesystems
 update_fstab
