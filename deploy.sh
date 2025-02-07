@@ -208,61 +208,62 @@ update_fstab() {
 update_efi() {
 	heading "Добавление загрузчика Альт Линукса в EFI"
 	
-	efi_mount="/mnt"
-	shim_path="$efi_mount/EFI/altlinux/shimx64.efi"
-	echo "Монтирую EFI-раздел в $efi_mount"
+	local efi_mount="/mnt"
+	local shim_path="$efi_mount/EFI/altlinux/shimx64.efi"
+	log "Монтирую EFI-раздел в $efi_mount"
 	mount "${device}3" $efi_mount
 	
-	echo "Проверяю существование shim"
+	log "Проверяю существование shim"
 	[ -f "$shim_path" ] || {
-		echo "$shim_path не найден"
+		log "$shim_path не найден"
 		exit 2
 	}
 	
 	set +e
 
-	echo "Проверяю существование загрузочной записи"
-	existing_entry=$(efibootmgr -v | grep -i "Alt Linux" | grep -Eo 'Boot[0-9A-F]{4}')
-	echo "$existing_entry"
+	log "Проверяю существование загрузочной записи"
+	local existing_entry=$(efibootmgr -v | grep -i "Alt Linux" | grep -Eo 'Boot[0-9A-F]{4}')
 	
 	if [ -n "$existing_entry" ]; then
-		echo "Найдена загрузочная запись: $existing_entry"
+		log "Найдена загрузочная запись: $existing_entry"
 		bootnum=${existing_entry#Boot}
 	else
-		echo "Не нашёл, создаю новую загрузочную запись"
-		new_entry=$(efibootmgr \
+		log "Не нашёл, создаю новую загрузочную запись"
+		efibootmgr \
 			--create \
 			--disk "$device" \
 			--part 3 \
 			--loader "\\EFI\\altlinux\\shimx64.efi" \
 			--label "Alt Linux" \
-			--verbose 2>&1 | grep -oP 'Boot\K[0-9A-F]{4}' \
-		)
+			--verbose 2>&1 | grep -oP 'Boot\K[0-9A-F]{4}'
+		local new_entry=$(efibootmgr -v | grep -i "Alt Linux" | grep -Eo 'Boot[0-9A-F]{4}')
 	
 		[ -n "$new_entry" ] || {
-			echo "Не удалось создать запись EFI"
+			log "Не удалось создать запись EFI"
 			exit 3
 		}
 	
-		bootnum=${new_entry##* }
+		bootnum=${new_entry#Boot}
 	fi
 	
-	echo "Размонтирую EFI-раздел"
+	log "Размонтирую EFI-раздел"
 	umount $efi_mount
 	
-	echo "Получаю порядок загрузки"
-	current_order=$(efibootmgr  | grep "BootOrder:" | cut -d: -f2 | tr -d ' ')
+	log "Получаю порядок загрузки"
+	local current_order=$(efibootmgr  | grep "BootOrder:" | cut -d: -f2 | tr -d ' ')
 	
-	echo "Формирую новый порядок загрузки"
-	new_order="$bootnum,$(echo "$current_order" | \
+	log "Формирую новый порядок загрузки"
+	local new_order="$bootnum,$(echo "$current_order" | \
 		tr ',' '\n' | \
 		grep -vx "$bootnum" | \
 		tr '\n' ',' | \
 		sed 's/,$//' \
 	)"
 	
-	echo "Сохраняю новый порядок"
+	log "Сохраняю новый порядок"
 	efibootmgr --bootorder "$new_order"
+
+	log "Работа с загрузочными записями завершена"
 	
 	echo "Текущая конфигурация загрузки:"
 	efibootmgr
