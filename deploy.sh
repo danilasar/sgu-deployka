@@ -108,15 +108,15 @@ copy_partition() {
 copy_images() {
 	heading "Копирование образов"
 	echo "ms_reserved.img..."
-	copy_partition 1 "$device/ms_reserved.img"
+	copy_partition 1 "$source_dir/ms_reserved.img"
 	echo "recovery.img..."
-	copy_partition 2 "$device/recovery.img"
+	copy_partition 2 "$source_dir/recovery.img"
 	echo "efi.img..."
-	copy_partition 3 "$device/efi.img"
+	copy_partition 3 "$source_dir/efi.img"
 	echo "windows.img..."
-	copy_partition 4 "$device/windows.img"
+	copy_partition 4 "$source_dir/windows.img"
 	echo "linux.img..."
-	copy_partition 5 "$device/linux.img"
+	copy_partition 5 "$source_dir/linux.img"
 }
 
 # Функция расширения ФС
