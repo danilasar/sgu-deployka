@@ -50,10 +50,12 @@ make_gpt() {
 	log "Создаю первый раздел (FAT32 LBA)"
 	parted -s "$device" mkpart fat32 17408B 134235135B
 	parted -s "$device" name 1 "\"$NAME1\""
+	parted -s "$device" set 1 msftres on
 	
 	log "Создаю второй раздел (Windows Recovery)"
 	parted -s "$device" mkpart ntfs 135266304B 689963007B
 	parted -s "$device" name 2 "\"$NAME2\""
+	parted -s "$device" set 2 diag on
 	
 	log "Создаем третий раздел (EFI System Partition)"
 	parted -s "$device" mkpart fat32 689963008B 794820607B
