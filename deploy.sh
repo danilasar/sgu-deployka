@@ -39,23 +39,59 @@ make_gpt() {
 	echo "Удаляю таблицу разделов"
 	sgdisk --zap-all "$device"
 
-	# Типы разделов:
-	# EF00 - EFI
-	# 0C01 - Microsoft Reserved
-	# 2700 - Windows Recovery
-	# 0700 - NTFS
-	# 8300 - Linux
-	# 8200 - Swap
+	# Размеры в мегабайтах
+	local SIZE1=100
+	local SIZE2=529
+	local SIZE3=100
+	local SIZE5=$((8 * 1024))
 
-	echo "Создаю новую таблицу разделов"
-	sgdisk --align-end=optimal \
-	  --new=1:0:+128M   --typecode=1:0C01  --change-name=1:"Microsoft Reserved" \
-	  --new=2:0:+529M   --typecode=2:2700  --change-name=2:"Recovery" \
-	  --new=3:0:+100M   --typecode=3:EF00  --change-name=3:"EFI" \
-	  --new=6:-8G:0       --typecode=6:8200  --change-name=6:"Swap" \
-	  #--new=4:0:+50%    --typecode=4:0700  --change-name=4:"Windows" \
-  	#--new=5:0:-8G     --typecode=5:8300  --change-name=5:"Linux" \
-	  "$device"
+	# Имена разделов
+	local NAME1="Microsoft Reserved"
+	local NAME2="Windows Recovery"
+	local NAME3="EFI"
+	local NAME4="Windows"
+	local NAME5="Linux"
+	local NAME6="Swap"
+
+	log "Пересоздаю таблицу разделов GPT"
+	parted -s "$DISK" mklabel gpt
+
+	log "Создаю первый раздел (FAT32 LBA)"
+	parted -s "$DISK" mkpart "$NAME1" fat32 1MiB ${SIZE1}MiB
+	parted -s "$DISK" name 1 "$NAME1"
+	
+	log "Создаю второй раздел (Windows Recovery)"
+	parted -s "$DISK" mkpart "$NAME2" ntfs ${SIZE1}MiB $((SIZE1 + SIZE2))MiB
+	parted -s "$DISK" name 2 "$NAME2"
+	
+	log "Создаем третий раздел (EFI System Partition)"
+	parted -s "$DISK" mkpart "$NAME3" fat32 $((SIZE1 + SIZE2))MiB $((SIZE1 + SIZE2 + SIZE3))MiB
+	parted -s "$DISK" name 3 "$NAME3"
+	parted -s "$DISK" set 3 boot on
+	
+	# Определяем оставшееся пространство
+	log "Определяю размеры основных разделов"
+	local TOTAL_SIZE=$(parted -s "$DISK" unit MiB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
+	local FREE_SIZE=$((TOTAL_SIZE - SIZE1 - SIZE2 - SIZE3 - SIZE5))
+	local SIZE4=$((FREE_SIZE / 2))
+	local SIZE5=$SIZE4
+	
+	log "Создаю раздел с виндой"
+	parted -s "$DISK" mkpart "$NAME4" ntfs $((SIZE1 + SIZE2 + SIZE3))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB
+	parted -s "$DISK" name 4 "$NAME4"
+	parted -s "$DISK" set 4 msftdata on
+	
+	log "Создаю раздел с альтушкой"
+	parted -s "$DISK" mkpart "$NAME5" ext4 $((SIZE1 + SIZE2 + SIZE3 + SIZE4))MiB $((SIZE1 + SIZE2 + SIZE3 + SIZE4 + SIZE5))MiB
+	parted -s "$DISK" name 5 "$NAME5"
+	
+	log "Создаю раздел подкачки"
+	parted -s "$DISK" mkpart "$NAME6" linux-swap $((TOTAL_SIZE - SIZE5))MiB ${TOTAL_SIZE}MiB
+	parted -s "$DISK" name 6 "$NAME6"
+	
+	parted -s "$DISK" print
+	
+	log "Создание таблицы разделов завершено"
 }
 
 # ------------------------------------------------------------
