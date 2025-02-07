@@ -4,9 +4,9 @@ set -e
 
 
 device=$(dialog --stdout --title "Целевое устройство" --fselect "/dev/" 14 88)
-source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' "$(pwd)" 14 88)
+source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' 14 88 "$(pwd)")
 scenario_choice=$(dialog --title "Выбор сценрия" --radiolist "Выбери сценарий:" 14 88 4 \
-    1 "Полное развёртывание системы" off \
+    1 "Полное развёртывание системы" on \
     2 "Синхронизация файловых систем (В РАЗРАБОТКЕ)" off \
     3 "Свой сценарий" off 3>&1 1>&2 2>&3)
 scenario=""
@@ -19,7 +19,7 @@ case $scenario_choice in
 		scenario=(check_device sync_filesystems)
 		;;
 	3)
-		choices=$(dialog --stdout --title "Выбор действий" --checklist "Выбери нужные действия:" 15 50 8 \
+		scenario=$(dialog --stdout --title "Выбор действий" --checklist "Выбери нужные действия:" 15 50 8 \
 			"check_device" "Проверить ввод" on \
 			"make_gpt" "Пересоздать таблицу разделов" on \
 			"copy_images" "Развернуть образы" on \
