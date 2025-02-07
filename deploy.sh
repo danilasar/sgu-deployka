@@ -86,7 +86,8 @@ make_gpt() {
 	parted -s "$device" name 5 "\"$NAME5\""
 	
 	log "Создаю раздел подкачки"
-	parted -s "$device" mkpart linux-swap $((TOTAL_SIZE - SIZE5))MiB ${TOTAL_SIZE}MiB
+	local START="$(parted -s "$device" unit GB print free | grep "Free Space" | tail -n 1 | awk '{print $1}')"
+	parted -s "$device" mkpart linux-swap "$START" 100%
 	parted -s "$device" name 6 "\"$NAME6\""
 	
 	parted -s "$device" print
