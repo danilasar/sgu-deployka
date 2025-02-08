@@ -187,6 +187,7 @@ copy_images() {
 	copy_partition 4 "$source_dir/windows.img"
 	log "linux.img..."
 	copy_partition 5 "$source_dir/linux.img"
+	mkswap "${device}6"
 }
 
 # Функция расширения ФС
@@ -322,15 +323,15 @@ connect_to_domain() {
 	mount "${device}5" "$MOUNT_POINT"
 
 	log "Устанавливаю hostname: $NEW_HOSTNAME..."
-	log "$NEW_HOSTNAME" | tee "${MOUNT_POINT}/etc/hostname" > /dev/null
+	echo "$NEW_HOSTNAME" | tee "${MOUNT_POINT}/etc/hostname" > /dev/null
 	sed -i "s/^127.0.1.1.*/127.0.1.1\t$NEW_HOSTNAME/" "${MOUNT_POINT}/etc/hosts"
 
 	log "Присоединяюсь к домену"
 	chroot_exec "echo '$AD_PASSWORD' | realm join --user '$AD_ADMIN' $AD_DOMAIN"
 
-	log "Настраиваю SSSD"
-	cp "${MOUNT_POINT}/etc/sssd/sssd.conf" "${MOUNT_POINT}/etc/sssd/sssd.conf.bak"
-	sed -i 's/use_fully_qualified_names = True/use_fully_qualified_names = False/' "${MOUNT_POINT}/etc/sssd/sssd.conf"
+	#log "Настраиваю SSSD"
+	#cp "${MOUNT_POINT}/etc/sssd/sssd.conf" "${MOUNT_POINT}/etc/sssd/sssd.conf.bak"
+	#sed -i 's/use_fully_qualified_names = True/use_fully_qualified_names = False/' "${MOUNT_POINT}/etc/sssd/sssd.conf"
 
 	log "Проверяю присоединение к домену..."
 	chroot_exec "realm list"
