@@ -33,6 +33,12 @@ case $scenario_choice in
 		;;
 esac
 
+WIN_UUID=FCFA3461FA341A7A
+linux_part="${device}5"
+win_part="${device}4"
+efi_part="${device}3"
+swap_part="${device}6"
+
 if [[ " ${scenario[*]} " =~ " connect_to_domain " ]]; then
 	MOUNT_POINT="/mnt/alt"
 	NEW_HOSTNAME=$(dialog --stdout --title "Имя компьютера" --inputbox "Введите имя компьютера:" 14 88 "W12-")
@@ -192,25 +198,25 @@ copy_images() {
 
 # Функция расширения ФС
 resize_fs() {
-    local partition=$1
-    local fstype=$(blkid -s TYPE -o value "$partition")
+	local partition=$1
+	local fstype=$(blkid -s TYPE -o value "$partition")
 
-    log "Расширение $partition (тип: ${fstype:-неизвестен})..."
-    
-    case $fstype in
-        ext4)
-            e2fsck -f -y "$partition" || true
-            resize2fs "$partition"
-            ;;
-        ntfs)
-            yes | ntfsfix "$partition" || true
-            yes | ntfsresize -f -b -P "$partition" || true
-            ;;
-        *)
-            log "Неизвестный тип файловой системы: $fstype. Расширение невозможно!"
-            return 1
-            ;;
-    esac
+	log "Расширение $partition (тип: ${fstype:-неизвестен})..."
+
+	case $fstype in
+		ext4)
+			e2fsck -f -y "$partition" || true
+  		resize2fs "$partition"
+  		;;
+		ntfs)
+			yes | ntfsfix "$partition" || true
+			yes | ntfsresize -f -b -P "$partition" || true
+			;;
+		*)
+			log "Неизвестный тип файловой системы: $fstype. Расширение невозможно!"
+			return 1
+			;;
+	esac
 }
 
 resize_filesystems() {
@@ -230,9 +236,6 @@ sync_filesystems() {
 
 update_fstab() {
 	heading "Обновление fstab"
-	linux_part="${device}5"
-	efi_part="${device}3"
-	swap_part="${device}6"
 
 	log "Монтирую разделы"
 	mount "$linux_part" /mnt
@@ -311,6 +314,10 @@ update_efi() {
 	
 	log "Сохраняю новый порядок"
 	efibootmgr --bootorder "$new_order"
+
+	log "Обновляю UUID виндового раздела для корректной работы BCD"
+	ntfslabel --new-serial="${WIN_UUID}" "$win_part" # потенциально восстановление UUID должно предотвратить проблемы с BCD
+
 
 	log "Работа с загрузочными записями завершена"
 }
