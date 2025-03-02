@@ -34,18 +34,25 @@ case $scenario_choice in
 esac
 
 WIN_UUID=FCFA3461FA341A7A
+SWAP_UUID=FCFA3461FA341A7B
 linux_part="${device}5"
 win_part="${device}4"
 efi_part="${device}3"
 swap_part="${device}6"
 
-if [[ " ${scenario[*]} " =~ " connect_to_domain " ]]; then
+init_resize_filesystems() {
+	RESIZE_DEVICES=$(dialog --stdout --title "Расширение файловых систем" --checklist "Выбери разделы для расширения:" 15 50 8 \
+		"$win_part" "Windows" on \
+		"$linux_part" "Linux" on)
+}
+
+init_connect_to_domain() {
 	MOUNT_POINT="/mnt/alt"
 	NEW_HOSTNAME=$(dialog --stdout --title "Имя компьютера" --inputbox "Введите имя компьютера:" 14 88 "W12-")
 	AD_DOMAIN=$(dialog --stdout --title "Домен" --inputbox "Введите домен:" 14 88 "main.sgu.ru")
 	AD_ADMIN=$(dialog --stdout --title "Учётная запись" --inputbox "Введите учётную запись с правами присоединения к домену:" 14 88 "grigorevde")
 	AD_PASSWORD=$(dialog --stdout --title "Пароль" --passwordbox "Введите пароль для учётной записи с правами присоединения к домену:" 14 88)
-fi
+}
 
 actionid=1
 log_file=deploy.log
@@ -62,7 +69,7 @@ log() {
 	local message=$1
 	local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
 	echo "[$timestamp] [$status] $message"
-	echo "[$timestamp] [$status] $message" >> "$log_file"
+	echo "[$timestamp] [$status] $message" >> "$log_file" || true
 	return "$status"
 }
 
@@ -103,7 +110,7 @@ make_gpt() {
 	parted -s "$device" mkpart ntfs 135266304B 689963007B
 	parted -s "$device" name 2 "\"$NAME2\""
 	parted -s "$device" set 2 diag on
-	
+
 	log "Создаем третий раздел (EFI System Partition)"
 	parted -s "$device" mkpart fat32 689963008B 794820607B
 	parted -s "$device" name 3 "\"$NAME3\""
@@ -120,6 +127,10 @@ make_gpt() {
 	parted -s "$device" mkpart ntfs 794820608B $((758 + SIZE4))MiB
 	parted -s "$device" name 4 "\"$NAME4\""
 	parted -s "$device" set 4 msftdata on
+
+	log "Обновляю винде UUID"
+
+	ntfslabel --new-serial="$(WIN_UUID)" "$win_part"
 	
 	log "Создаю раздел с альтушкой"
 	parted -s "$device" mkpart ext4 $((758 + 1 + SIZE4))MiB $((758 + SIZE4 + SIZE5))MiB
@@ -148,7 +159,7 @@ copy_partition() {
       curl -sSL "$image_source" | dd "of=${device}${partition_number}" bs=4M status=progress
       ;;
     ssh://*)
-      ssh_user_host=$(echo "$image_source" | sed 's/ssh:\/\///; s/\// /')
+      local ssh_user_host=$(echo "$image_source" | sed 's/ssh:\/\///; s/\// /')
       ssh "$ssh_user_host" "cat" | dd "of=${device}${partition_number}" bs=4M status=progress
       ;;
 		smb://*)
@@ -193,7 +204,7 @@ copy_images() {
 	copy_partition 4 "$source_dir/windows.img"
 	log "linux.img..."
 	copy_partition 5 "$source_dir/linux.img"
-	mkswap "${device}6"
+	mkswap "${device}6" -U "$SWAP_UUID"
 }
 
 # Функция расширения ФС
@@ -221,12 +232,10 @@ resize_fs() {
 
 resize_filesystems() {
 	heading "Расширение файловых систем"
-	local windows_partition="${device}4"
-	local linux_partition="${device}5"
-	log "Расширяю $windows_partition"
-	resize_fs "$windows_partition"
-	log "Расширяю $linux_partition"
-	resize_fs "$linux_partition"
+	for partition in "${RESIZE_DEVICES[@]}"; do
+		log "Расширяю $partition"
+		resize_fs "$partition"
+	done
 }
 
 sync_filesystems() {
@@ -348,5 +357,13 @@ connect_to_domain() {
 }
 
 for cmd in ${scenario[@]}; do
+	[[ $(type -t init_${cmd}) == function ]] && init_${cmd}
+done
+
+for cmd in ${scenario[@]}; do
 	$cmd
+done
+
+for cmd in ${scenario[@]}; do
+	[[ $(type -t destruct_${cmd}) ]] && destruct_${cmd}
 done
