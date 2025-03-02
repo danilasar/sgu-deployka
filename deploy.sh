@@ -3,7 +3,6 @@
 set -e
 
 device=$(dialog --stdout --title "Целевое устройство" --fselect "/dev/" 14 88)
-source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' 14 88 "$(pwd)")
 scenario_choice=$(dialog --stdout --title "Выбор сценрия" --radiolist "Выбери сценарий:" 14 88 4 \
     1 "Полное развёртывание системы" on \
     2 "Синхронизация файловых систем (В РАЗРАБОТКЕ)" off \
@@ -39,6 +38,14 @@ linux_part="${device}5"
 win_part="${device}4"
 efi_part="${device}3"
 swap_part="${device}6"
+
+init_copy_images() {
+	source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' 14 88 "$(pwd)")
+	if [ -f ${source_dir} ]; then # TODO: нужна поддержка tar не только при копировании
+		dialog --stdout --yesno "Альтушка упакована в tar?" 14 60
+		COPY_IMAGES_USE_TAR=$?
+	fi
+}
 
 init_resize_filesystems() {
 	RESIZE_DEVICES=$(dialog --stdout --title "Расширение файловых систем" --checklist "Выбери разделы для расширения:" 15 50 8 \
@@ -148,7 +155,7 @@ make_gpt() {
 # ------------------------------------------------------------
 # Функция копирования образов (локально/FTP/SSH/HTTP(S))
 # ------------------------------------------------------------
-copy_partition() {
+copy_img() {
   local partition_number=$1
   local image_source=$2
 
@@ -192,6 +199,22 @@ copy_partition() {
   esac
 }
 
+copy_tar() {
+  local partition_number=$1
+  local image_source=$2
+	log "Создаю файловую систему ext4"
+	mkfs.ext4 "${device}${partition_number}"
+	log "Создаю папку /mnt/$partition_number"
+	mkdir -p "/mnt/$partition_number"
+	log "Монтирую в неё ${device}${partition_number}"
+	mount "${device}${partition_number}" "/mnt/${partition_number}"
+	log "Распаковываю $image_source..."
+	tar -xvzf "$image_source" "/mnt/$partition_number"
+	log "Размонтирую раздел и удаляю папку"
+	umount "/mnt/$partition_number"
+	rmdir "/mnt/$partition_number"
+}
+
 copy_images() {
 	heading "Копирование образов"
 	log "ms_reserved.img..."
@@ -202,8 +225,13 @@ copy_images() {
 	copy_partition 3 "$source_dir/efi.img"
 	log "windows.img..."
 	copy_partition 4 "$source_dir/windows.img"
-	log "linux.img..."
-	copy_partition 5 "$source_dir/linux.img"
+	if "$COPY_IMAGES_USE_TAR"; then
+		log "linux.tar..."
+		copy_tar 5 "$source_dir/linux.tar.gz"
+	else
+		log "linux.img..."
+		copy_partition 5 "$source_dir/linux.img"
+	fi
 	mkswap "${device}6" -U "$SWAP_UUID"
 }
 

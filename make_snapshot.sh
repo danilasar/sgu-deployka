@@ -63,6 +63,32 @@ check_device() {
 	esac
 }
 
+make_tar() {
+	local device_part=$1
+	local out=$2
+	local temp_mnt="/mnt/tar"
+	local output_file="${destination_dir}/${out}.tar.gz"
+	
+	log "Создаю папку $temp_mnt"
+	mkdir -p "$temp_mnt"
+	log "Монтирую $device_part в $temp_mnt"
+	mount "$device_part" "$temp_mnt"
+	log "Копирую $device_part в $output_file..."
+	tar -cvpzf "$output_file" --one-file-system "$temp_mnt"
+	log "Размонтирую $device_part и удаляю $temp_mnt"
+	umount "$device_part"
+	rmdir "$temp_mnt"
+}
+
+make_img() {
+	local device_part=$1
+	local out=$2
+	local output_file="${destination_dir}/${out}.img"
+
+	log "Копирую $device_part в $output_file..."
+	dd if="$device_part" of="$output_file" bs=4M status=progress
+}
+
 make_backup() {
 	heading "Создание снимков"
 	for i in $deviceids; do
@@ -78,7 +104,6 @@ make_backup() {
 		esac
 
 		local device_part="${device}${i}"
-		local output_file="${destination_dir}/${out}.img"
 
 		log "Проверяю существование ${device_part}"
 		if [ ! -b "$device_part" ]; then
@@ -86,8 +111,12 @@ make_backup() {
 			continue
 		fi
 
-		log "Копирую $device_part в $output_file..."
-		dd if="$device_part" of="$output_file" bs=4M status=progress
+
+		if [ "$i" == 5 ]; then
+			make_tar device_part out
+		else
+			make_img device_part out
+		fi
 	done
 }
 
