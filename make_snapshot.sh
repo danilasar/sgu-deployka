@@ -113,9 +113,9 @@ make_backup() {
 
 
 		if [ "$i" == 5 ]; then
-			make_tar device_part out
+			make_tar "$device_part" "$out"
 		else
-			make_img device_part out
+			make_img "$device_part" "$out"
 		fi
 	done
 }
