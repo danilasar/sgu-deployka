@@ -33,18 +33,48 @@ case $scenario_choice in
 esac
 
 WIN_UUID=FCFA3461FA341A7A
-SWAP_UUID=FCFA3461FA341A7B
+WIN_PARTUUID=e38b1249-8de8-4b4d-87f3-c06388e6e52f
+SWAP_UUID=79e8fa61-e802-40b0-ac25-b95c003e272c
 linux_part="${device}5"
 win_part="${device}4"
 efi_part="${device}3"
 swap_part="${device}6"
 
+init_make_gpt() {
+	local number=$(dialog --clear --stdout \
+		--title "Размер $win_part" \
+		--inputbox "Размер раздела с виндой в MiB (0, чтобы занять 50% диска):" 14 88
+	)
+	if [[ ! "$number" =~ ^[0-9]+$ ]]; then
+		exit 1
+	fi
+	GPT_WIN_SIZE=$number
+	number=$(dialog --clear --stdout \
+		--title "Размер $linux_part" \
+		--inputbox "Размер раздела с линуксом в MiB (0, чтобы занять оставшееся место):" 14 88
+	)
+	if [[ ! "$number" =~ ^[0-9]+$ ]]; then
+		exit 1
+	fi
+	GPT_LIN_SIZE=$number
+}
+
 init_copy_images() {
 	source_dir=$(dialog --stdout --title "Исходные образы" --inputbox $'Поддерживаются:\n+ Путь к папке в файловой системе\n+ FTP, HTTP(S)\n+ Samba: smb://user:pass@domain/share/path' 14 88 "$(pwd)")
-	if [ -f ${source_dir} ]; then # TODO: нужна поддержка tar не только при копировании
-		dialog --stdout --yesno "Альтушка упакована в tar?" 14 60
-		COPY_IMAGES_USE_TAR=$?
+	local linux=""
+	if [ -d "$source_dir" ]; then
+		IFS=':' read -a linux <<< 'linux.tar.gz: :on:linux.img: :off'
+	else
+		IFS=':' read -a linux <<< 'linux.img: :on'
 	fi
+
+	COPY_IMAGES_WHICH=$(dialog --stdout --title "Образы для копирования" --checklist "Выбери нужные образы:" 15 50 8 \
+		ms_reserved "" on \
+		recovery    "" on \
+		efi         "" on \
+		windows     "" on \
+		"${linux[@]}"
+	)
 }
 
 init_resize_filesystems() {
@@ -127,18 +157,27 @@ make_gpt() {
 	log "Определяю размеры основных разделов"
 	local TOTAL_SIZE=$(parted -s "$device" unit MiB print free | awk '/Free Space/ {print $2}' | tail -n 1 | sed 's/MiB//')
 	local FREE_SIZE=$((TOTAL_SIZE - 758 - 8192 - 2))
-	local SIZE4=$((FREE_SIZE / 2))
-	local SIZE5=$SIZE4
+	local SIZE4=0
+	local SIZE5=0
+
+	if [[ $GPT_WIN_SIZE == 0 ]]; then
+		SIZE4=$((FREE_SIZE / 2))
+	else
+		SIZE4=$GPT_WIN_SIZE
+	fi
+
+	if [[ $GPT_LIN_SIZE == 0 ]]; then
+		SIZE5=$((FREE_SIZE - SIZE4))
+	else
+		SIZE5=$GPT_WIN_SIZE
+	fi
 	
 	log "Создаю раздел с виндой"
 	parted -s "$device" mkpart ntfs 794820608B $((758 + SIZE4))MiB
 	parted -s "$device" name 4 "\"$NAME4\""
 	parted -s "$device" set 4 msftdata on
+	sgdisk --partition-guid=4:"${WIN_PARTUUID}" "$device"
 
-	log "Обновляю винде UUID"
-
-	ntfslabel --new-serial="$(WIN_UUID)" "$win_part"
-	
 	log "Создаю раздел с альтушкой"
 	parted -s "$device" mkpart ext4 $((758 + 1 + SIZE4))MiB $((758 + SIZE4 + SIZE5))MiB
 	parted -s "$device" name 5 "\"$NAME5\""
@@ -209,7 +248,7 @@ copy_tar() {
 	log "Монтирую в неё ${device}${partition_number}"
 	mount "${device}${partition_number}" "/mnt/${partition_number}"
 	log "Распаковываю $image_source..."
-	tar -xvzf "$image_source" "/mnt/$partition_number"
+	tar -xvzf "$image_source" -C "/mnt/$partition_number" --strip-components=2
 	log "Размонтирую раздел и удаляю папку"
 	umount "/mnt/$partition_number"
 	rmdir "/mnt/$partition_number"
@@ -217,20 +256,28 @@ copy_tar() {
 
 copy_images() {
 	heading "Копирование образов"
-	log "ms_reserved.img..."
-	copy_partition 1 "$source_dir/ms_reserved.img"
-	log "recovery.img..."
-	copy_partition 2 "$source_dir/recovery.img"
-	log "efi.img..."
-	copy_partition 3 "$source_dir/efi.img"
-	log "windows.img..."
-	copy_partition 4 "$source_dir/windows.img"
-	if "$COPY_IMAGES_USE_TAR"; then
+	if echo "${COPY_IMAGES_WHICH[@]}" | grep 'ms_reserved' > /dev/null; then
+		log "ms_reserved.img..."
+		copy_img 1 "$source_dir/ms_reserved.img"
+	fi
+	if echo "${COPY_IMAGES_WHICH[@]}" | grep 'recovery' > /dev/null; then
+		log "recovery.img..."
+		copy_img 2 "$source_dir/recovery.img"
+	fi
+	if echo "${COPY_IMAGES_WHICH[@]}" | grep 'efi' > /dev/null; then
+		log "efi.img..."
+		copy_img 3 "$source_dir/efi.img"
+	fi
+	if echo "${COPY_IMAGES_WHICH[@]}" | grep 'windows' > /dev/null; then
+		log "windows.img..."
+		copy_img 4 "$source_dir/windows.img"
+	fi
+	if echo "${COPY_IMAGES_WHICH[@]}" | grep 'linux.tar.gz'; then
 		log "linux.tar..."
 		copy_tar 5 "$source_dir/linux.tar.gz"
-	else
+	elif echo "${COPY_IMAGES_WHICH[@]}" | grep 'linux.img'; then
 		log "linux.img..."
-		copy_partition 5 "$source_dir/linux.img"
+		copy_img 5 "$source_dir/linux.img"
 	fi
 	mkswap "${device}6" -U "$SWAP_UUID"
 }
